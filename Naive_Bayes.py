@@ -66,81 +66,108 @@ def train_categorical_nb(dataset):
     return priors, likelihoods, separated, features_vocab
         
 
-def predict_detailed(dataset, input_row, header):
-    priors, likelihoods, separated, features_vocab = train_categorical_nb(dataset)
+def predict_row(input_row, header, model_data, row_number):
+    priors, likelihoods, separated, features_vocab = model_data
     
-    print(f"\n{'='*40}")
-    print(f"INPUT DATA: {input_row}")
-    print(f"{'='*40}\n")
-
-    # [Bagian A]
-    print("a. Prior Probabilities P(Class):")
-    for label, prob in priors.items(): 
-        print(f"   P({label}) = {prob:.4f}") 
-    print("-" * 20)
-
-    # [Bagian B]
-    print("b. Conditional Probabilities P(Fitur|Class):")
-    alpha = 1 
+    # --- MENAMPILKAN PERHITUNGAN (Syarat Poin 3) ---
+    print(f"\n{'='*50}")
+    print(f"DATA TESTING KE-{row_number}")
+    print(f"Input Fitur: {input_row}")
     
-    num_features = len(features_vocab)
+    # Hitung Posterior
+    best_label = None
+    best_score = -float('inf') 
     
-    class_scores = {}
+    alpha = 1
+    num_features_train = len(features_vocab)
     
+    # Cek setiap kelas
+    print("-" * 50)
     for label in priors:
         total_class_count = len(separated[label])
         log_prob_sum = math.log(priors[label]) 
         
-        calc_details = []
+        calc_str = [] # Untuk menyimpan teks perhitungan agar bisa diprint
         
-        for i in range(num_features):
-            # Cek apakah input row cukup panjang
+        for i in range(num_features_train):
             if i < len(input_row):
                 feature_val = input_row[i]
-                feature_name = header[i] if header else f"Fitur {i}"
-                
-                # Ambil count, default 0 jika nilai tidak ada di training
                 count = likelihoods[label][i].get(feature_val, 0)
-                
                 k = len(features_vocab[i])
                 prob = (count + alpha) / (total_class_count + (alpha * k))
-                
                 log_prob_sum += math.log(prob)
                 
-                calc_details.append(f"P({feature_name}={feature_val}|{label})={prob:.3f}")
+                # Menampilkan Probabilitas per atribut (Poin 3)
+                col_name = header[i] if header else f"F{i}"
+                calc_str.append(f"P({col_name}={feature_val}|{label})={prob:.3f}")
         
-        print(f"   Class {label}: \n      {', '.join(calc_details)}")
-        class_scores[label] = log_prob_sum 
+        # Print perhitungan detail
+        print(f"Kelas {label} -> {', '.join(calc_str)}")
+        print(f"   >> Skor Akhir (Log): {log_prob_sum:.4f}")
 
-    print("-" * 20)
-
-    # [Bagian C]
-    print("c. Posterior Probabilities (Log Scale):")
-    best_label = None
-    best_score = -float('inf') 
-    
-    for label, score in class_scores.items():
-        print(f"   Posterior({label}) = {score:.4f}")
-        if score > best_score:
-            best_score = score
+        if log_prob_sum > best_score:
+            best_score = log_prob_sum
             best_label = label
             
-    print("-" * 20)
+    return best_label
 
-    # [Bagian D]
-    print("d. Hasil Segmentasi (Prediksi):")
-    print(f"   Data masuk ke dalam Segmentasi: [{best_label}]")
-    print(f"{'='*40}")
+# ==============================================================================
+# 4. EKSEKUSI UTAMA (DENGAN HITUNG AKURASI)
+# ==============================================================================
 
+# Ganti nama file sesuai punya kamu
+file_training = 'Data_Training.csv' 
+file_testing  = 'Data_Test.csv' 
 
-# --- EKSEKUSI UTAMA ---
-nama_file = 'Data Training - Sheet1.csv' 
-dataset_excel, header = load_csv(nama_file)
+# 1. Load Training
+train_data, train_header = load_csv(file_training)
 
-if dataset_excel:
-
-    raw_input = ['Male', 'Yes', '18', 'Yes', 'Doctor', '8.0', 'Average', '3.0', 'Cat_2','B'] 
+if train_data:
+    # 2. Latih Model
+    model = train_categorical_nb(train_data)
     
-    input_user = raw_input[:-1] 
+    # 3. Load Testing
+    print(f"\n[INFO] Membaca data testing...")
+    test_data, test_header = load_csv(file_testing)
     
-    predict_detailed(dataset_excel, input_user, header)
+    if test_data:
+        jumlah_benar = 0
+        total_data = len(test_data)
+        
+        print(f"\n[INFO] Mulai Pengujian pada {total_data} data...")
+        
+        # 4. Loop Testing
+        for i, row in enumerate(test_data):
+            # Asumsi: File Testing JUGA punya kolom Jawaban (Label) di akhir
+            # Pisahkan Fitur dan Jawaban Asli
+            input_fitur = row[:-1]  
+            jawaban_asli = row[-1]  
+            
+            # Lakukan Prediksi
+            prediksi_sistem = predict_row(input_fitur, train_header, model, i+1)
+            
+            # Cek Apakah Benar?
+            status = "SALAH"
+            if prediksi_sistem == jawaban_asli:
+                jumlah_benar += 1
+                status = "BENAR"
+                
+            print(f"\n>>> HASIL: Prediksi [{prediksi_sistem}] vs Asli [{jawaban_asli}] -> {status}")
+            
+        # 5. HITUNG AKURASI (Syarat Poin 5)
+        akurasi = (jumlah_benar / total_data) * 100
+        
+        print(f"\n{'='*50}")
+        print("LAPORAN AKURASI SISTEM")
+        print(f"{'='*50}")
+        print(f"Jumlah Data Uji   : {total_data}")
+        print(f"Prediksi Benar    : {jumlah_benar}")
+        print(f"Prediksi Salah    : {total_data - jumlah_benar}")
+        print(f"-----------------------------")
+        print(f"TOTAL AKURASI     : {akurasi:.2f}%")
+        print(f"{'='*50}")
+        
+    else:
+        print("File testing kosong.")
+else:
+    print("File training kosong.")
