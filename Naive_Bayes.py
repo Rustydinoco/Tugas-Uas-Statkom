@@ -1,6 +1,10 @@
 import math
 import csv
 
+# ========================
+# FUNGSI PEMBANTU 
+# ========================
+
 def load_csv(filename):
     dataset = []
     try:
@@ -20,7 +24,7 @@ def load_csv(filename):
     
 
 def train_categorical_nb(dataset):
-    # --- 1. Memisahkan data berdasarkan label kelas ---
+    # --- Memisahkan data berdasarkan label kelas ---
     total_rows = len(dataset)
     separated = {} 
     
@@ -30,12 +34,12 @@ def train_categorical_nb(dataset):
             separated[label] = []
         separated[label].append(row)
 
-    # --- 2. Menghitung probabilitas prior  ---
+    # --- Menghitung probabilitas prior  ---
     priors = {} 
     for label, rows in separated.items():
         priors[label] = len(rows) / total_rows 
 
-    # --- 3. Menghitung likelihood ---   
+    # --- Menghitung likelihood ---   
     likelihoods = {}
     features_vocab = {}
 
@@ -69,8 +73,8 @@ def train_categorical_nb(dataset):
 def predict_row(input_row, header, model_data, row_number):
     priors, likelihoods, separated, features_vocab = model_data
     
-    # --- MENAMPILKAN PERHITUNGAN (Syarat Poin 3) ---
-    print(f"\n{'='*50}")
+    # --- MENAMPILKAN PERHITUNGAN ---
+    print(f"\n{'='*85}")
     print(f"DATA TESTING KE-{row_number}")
     print(f"Input Fitur: {input_row}")
     
@@ -82,7 +86,7 @@ def predict_row(input_row, header, model_data, row_number):
     num_features_train = len(features_vocab)
     
     # Cek setiap kelas
-    print("-" * 50)
+    print("-" * 85)
     for label in priors:
         total_class_count = len(separated[label])
         log_prob_sum = math.log(priors[label]) 
@@ -97,7 +101,7 @@ def predict_row(input_row, header, model_data, row_number):
                 prob = (count + alpha) / (total_class_count + (alpha * k))
                 log_prob_sum += math.log(prob)
                 
-                # Menampilkan Probabilitas per atribut (Poin 3)
+                # Menampilkan Probabilitas per atribut 
                 col_name = header[i] if header else f"F{i}"
                 calc_str.append(f"P({col_name}={feature_val}|{label})={prob:.3f}")
         
@@ -111,22 +115,21 @@ def predict_row(input_row, header, model_data, row_number):
             
     return best_label
 
-# ==============================================================================
-# 4. EKSEKUSI UTAMA (DENGAN HITUNG AKURASI)
-# ==============================================================================
+# ========================
+# PART EKSEKUSI UTAMA 
+# ========================
 
-# Ganti nama file sesuai punya kamu
 file_training = 'Data_Training.csv' 
 file_testing  = 'Data_Test.csv' 
 
-# 1. Load Training
+# Load Training
 train_data, train_header = load_csv(file_training)
 
 if train_data:
-    # 2. Latih Model
+    # Latih Model
     model = train_categorical_nb(train_data)
     
-    # 3. Load Testing
+    # Load Testing
     print(f"\n[INFO] Membaca data testing...")
     test_data, test_header = load_csv(file_testing)
     
@@ -136,17 +139,17 @@ if train_data:
         
         print(f"\n[INFO] Mulai Pengujian pada {total_data} data...")
         
-        # 4. Loop Testing
+        # Loop Testing
         for i, row in enumerate(test_data):
             # Asumsi: File Testing JUGA punya kolom Jawaban (Label) di akhir
             # Pisahkan Fitur dan Jawaban Asli
             input_fitur = row[:-1]  
             jawaban_asli = row[-1]  
             
-            # Lakukan Prediksi
+            # Proses Prediksi
             prediksi_sistem = predict_row(input_fitur, train_header, model, i+1)
             
-            # Cek Apakah Benar?
+            # Cek kesesuaian hasil prediksi
             status = "SALAH"
             if prediksi_sistem == jawaban_asli:
                 jumlah_benar += 1
@@ -154,12 +157,12 @@ if train_data:
                 
             print(f"\n>>> HASIL: Prediksi [{prediksi_sistem}] vs Asli [{jawaban_asli}] -> {status}")
             
-        # 5. HITUNG AKURASI (Syarat Poin 5)
+        # Perhitungan Akurasi 
         akurasi = (jumlah_benar / total_data) * 100
         
-        print(f"\n{'='*50}")
+        print(f"\n{'='*30}")
         print("LAPORAN AKURASI SISTEM")
-        print(f"{'='*50}")
+        print(f"{'='*30}")
         print(f"Jumlah Data Uji   : {total_data}")
         print(f"Prediksi Benar    : {jumlah_benar}")
         print(f"Prediksi Salah    : {total_data - jumlah_benar}")
